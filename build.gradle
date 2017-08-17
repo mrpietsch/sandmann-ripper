@@ -8,10 +8,23 @@ buildscript {
     }
 }
 
+version = '1.0'
+
 apply plugin: 'kotlin'
 
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
+
+task fatJar(type: Jar) {
+    manifest {
+        attributes 'Implementation-Title': 'Sandmann Loader',
+                'Implementation-Version': version,
+                'Main-Class': 'org.pspace.sandmann.Main'
+    }
+    baseName = project.name + '-all'
+    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+    with jar
+}
 
 repositories {
     jcenter()
