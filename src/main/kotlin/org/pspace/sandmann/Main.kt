@@ -4,6 +4,7 @@ import org.json.simple.JSONArray
 import org.json.simple.JSONObject
 import org.json.simple.parser.JSONParser
 import org.jsoup.Jsoup
+import org.jsoup.nodes.Element
 import java.io.File
 import java.io.FileOutputStream
 import java.net.URL
@@ -14,20 +15,35 @@ import java.time.format.DateTimeFormatter
 object Main {
 
     val sandmannHomepage = URL("https://www.sandmann.de/filme/index.html")
-    val targetFile = File("/Users/peach/Downloads/${todayAsIso()}.mp4")
+    val targetDirectory = File("/Users/peach/Downloads/")
 
     @JvmStatic
     fun main(args: Array<String>) {
 
-        val todaysEpisodeDescriptor = findLinkToDescriptorForTodaysEpisode()
+        val (todaysEpisodeDescriptor, title) = findLinkToDescriptorForTodaysEpisode()
         val bestVideoUrl = getHighestQualityVideoUrlFromJsonDescriptor(todaysEpisodeDescriptor)
+
+        val fileName = makeFileNameFromTitle(title)
+
+        val targetFile = File(targetDirectory, fileName)
+
+        println("Dowloading video from '$bestVideoUrl' to '$targetFile'")
 
         downloadVideo(bestVideoUrl, targetFile)
 
         println("Done!")
     }
 
-    private fun todayAsIso() = LocalDate.now().format(DateTimeFormatter.ISO_DATE)
+    private fun makeFileNameFromTitle(title: String): String {
+        val sourceRemoved = title.replace(Regex("\\s+\\(Quelle.*\\)"), "")
+        val sanitizedFilename = sanitizeFilename(sourceRemoved)
+        val todayAsIso = LocalDate.now().format(DateTimeFormatter.ISO_DATE)
+        return "$todayAsIso $sanitizedFilename"
+    }
+
+    fun sanitizeFilename(name: String): String {
+        return name.replace("[/:]".toRegex(), "").trim()
+    }
 
     private fun downloadVideo(url: URL, targetFile: File) {
         val readableByteChannel = Channels.newChannel(url.openStream())
@@ -58,18 +74,24 @@ object Main {
         }
     }
 
-    private fun findLinkToDescriptorForTodaysEpisode(): URL {
+    private fun findLinkToDescriptorForTodaysEpisode(): Pair<URL, String> {
         val sandmannLandingPage = Jsoup.connect(sandmannHomepage.toString()).get()
 
         val linksToVideoPages = sandmannLandingPage.select("div[data-media-ref~=/filme]")
 
-        val relevantLinks = linksToVideoPages
-                .map { it.attr("data-media-ref") }
-                .distinct()
-                .filter { it.contains("automaticteaser.mediajsn.jsn") }
+        val relevantLinksContainers = linksToVideoPages
+                .distinctBy { mediaRef(it) }
+                .filter { mediaRef(it).contains("automaticteaser.mediajsn.jsn") }
 
-        assert(relevantLinks.size == 1, { "Could not find unique link" })
+        assert(relevantLinksContainers.size == 1, { "Could not find unique link" })
 
-        return URL(sandmannHomepage, relevantLinks.first())
+        val firstLinkElement = relevantLinksContainers.first()
+
+        val title = firstLinkElement.select("img").attr("title")
+        val url = URL(sandmannHomepage, mediaRef(firstLinkElement))
+
+        return (url to title)
     }
+
+    private fun mediaRef(element: Element) = element.attr("data-media-ref")
 }
