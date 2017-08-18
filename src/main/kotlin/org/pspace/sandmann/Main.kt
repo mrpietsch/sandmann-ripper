@@ -2,6 +2,8 @@ package org.pspace.sandmann
 
 import com.amazonaws.auth.EnvironmentVariableCredentialsProvider
 import com.amazonaws.regions.Regions
+import com.amazonaws.services.lambda.runtime.Context
+import com.amazonaws.services.lambda.runtime.RequestStreamHandler
 import com.amazonaws.services.s3.AmazonS3
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
 import com.amazonaws.services.s3.model.ObjectMetadata
@@ -12,19 +14,18 @@ import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
 import java.io.BufferedInputStream
 import java.io.InputStream
+import java.io.OutputStream
 import java.net.URL
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
-object Main {
+class Main : RequestStreamHandler {
 
     val SANDMANN_HOMEPAGE = URL("https://www.sandmann.de/filme/index.html")
 
     val BUCKET_NAME = "sandmann-repo"
 
-    @JvmStatic
-    fun main(args: Array<String>) {
-
+    override fun handleRequest(input: InputStream?, output: OutputStream?, context: Context?) {
         val (todaysEpisodeDescriptor, title) = findLinkToDescriptorForTodaysEpisode()
         val bestVideoUrl = getHighestQualityVideoUrlFromJsonDescriptor(todaysEpisodeDescriptor)
 
@@ -41,7 +42,7 @@ object Main {
         return "$todayAsIso $sanitizedFilename.mp4"
     }
 
-    fun sanitizeFilename(name: String): String {
+    private fun sanitizeFilename(name: String): String {
         return name.replace("[/:]".toRegex(), "").trim()
     }
 
@@ -112,5 +113,12 @@ object Main {
                 .withCredentials(EnvironmentVariableCredentialsProvider())
                 .withRegion(Regions.EU_CENTRAL_1)
                 .build()
+    }
+
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            Main().handleRequest(null, null, null)
+        }
     }
 }
