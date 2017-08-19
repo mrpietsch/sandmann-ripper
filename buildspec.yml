@@ -7,6 +7,9 @@ phases:
   pre_build:
     commands:
       - echo Nothing to do in the pre_build phase...
+      # Unfortunately currently CodePipeline does not retain file permissions
+      # during actions/phases. So make the gradlew script executable maually
+      - chmod +x ./gradlew
   build:
     commands:
       - echo Build started on `date`
