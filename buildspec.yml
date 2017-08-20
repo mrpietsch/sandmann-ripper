@@ -16,7 +16,7 @@ phases:
       - ./gradlew fatJar
   post_build:
     commands:
-      - echo Build completed on `date`
+      - aws lambda update-function-code --region eu-central-1 --function-name sandmann_ripper --zip-file fileb://build/libs/load_sandmann-all-1.0.jar --publish
 artifacts:
   files:
     - build/libs/load_sandmann-all-1.0.jar
