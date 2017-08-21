@@ -31,7 +31,7 @@ class Main : RequestStreamHandler {
 
         uploadVideoToS3(
                 targetFileName = makeFileNameFromTitle(title),
-                inputStream = bestVideoUrl.openStream()
+                sourceUrl = bestVideoUrl
         )
     }
 
@@ -46,17 +46,25 @@ class Main : RequestStreamHandler {
         return name.replace("[/:]".toRegex(), "").trim()
     }
 
-    private fun uploadVideoToS3(targetFileName: String, inputStream: InputStream) {
-        println("Upoading to AWS")
+    private fun uploadVideoToS3(targetFileName: String, sourceUrl: URL) {
+        println("Uploading to AWS")
+
+        val urlConnection = sourceUrl.openConnection()
 
         val metadata = ObjectMetadata()
-        metadata.contentType = "video/mp4"
+        metadata.contentType = urlConnection.contentType
+        metadata.contentLength = urlConnection.contentLengthLong
         metadata.contentLanguage = "de"
+
+        println("Content-type: ${urlConnection.contentType}")
+        println("Content-length: ${urlConnection.contentLengthLong / 1024 / 1024} MB")
+
+        val inputStream = BufferedInputStream(urlConnection.getInputStream())
 
         getS3Client().putObject(
                 BUCKET_NAME,
                 targetFileName,
-                BufferedInputStream(inputStream),
+                inputStream,
                 metadata
         );
 
