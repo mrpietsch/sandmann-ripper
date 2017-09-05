@@ -43,7 +43,10 @@ class Main : RequestStreamHandler {
     }
 
     private fun sanitizeFilename(name: String): String {
-        return name.replace("[/:]".toRegex(), "").trim()
+        return name
+                .replace("[/]".toRegex(), "")
+                .replace("[:]".toRegex(), " -")
+                .trim()
     }
 
     private fun uploadVideoToS3(targetFileName: String, sourceUrl: URL) {
